@@ -90,7 +90,7 @@ model  = joblib.load("E:/wheatN/tabpfn_model_NUE.pkl")
 scaler = joblib.load("E:/wheatN/tabpfn_scaler_NUE.pkl")
 
 # === 6~7.Prepare data for TabPFN===
-print("=== TabPFN 特征匹配调试 ===")
+print("=== TabPFN feature matching debugging ===")
 numeric_columns_train = X_train.select_dtypes(include=[np.number]).columns.tolist()
 
 success = False
@@ -266,5 +266,6 @@ plt.yticks(fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "TabPFN_SHAP_bar.tif"), dpi=300, bbox_inches='tight')
 plt.show()
+
 
 
