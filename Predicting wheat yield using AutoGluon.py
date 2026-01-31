@@ -1,0 +1,72 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+from autogluon.tabular import TabularPredictor
+
+# 1.Read and preprocess the data
+df = pd.read_csv('E:/wheatN/wheatN.csv')
+
+# 2.Retain the nitrogen input samples
+df = df[df['N'] != 0]
+
+# 3.Type conversion: AutoGluon can automatically handle string categories
+for col in ['Zone', 'MainClimates', 'Precipitation', 'Temperature', 'Tillage', 'Nmethod', 'NitrogenForm']:
+    df[col] = df[col].astype(str)
+
+for col in ['StrawReturn', 'OrganicInput', 'Irrigation']:
+    df[col] = df[col].map({'No': 0, 'Yes': 1})
+
+# 4.Splitting into training/test sets
+drop_cols = ['Nuptake', 'No']  # Remove columns that are not used as features
+df_clean = df.drop(columns=drop_cols)
+df_train, df_test = train_test_split(df_clean, test_size=0.3, random_state=42)
+
+# 5.AutoGluon model training path
+save_path = 'E:/wheatN/Yield'
+
+# 6.Initialize and train the AutoGluon model (preserving the complete structure)
+predictor = TabularPredictor(
+    label='Yield',
+    path=save_path,
+    problem_type='regression',
+    eval_metric='root_mean_squared_error'
+).fit(
+    train_data=df_train,
+    presets='best_quality',
+    refit_full=True,
+    verbosity=2
+)
+
+# 7.Models list
+model_names = predictor.model_names()
+print("\n📌 All models：", model_names)
+
+# 8.Test set metrics（RMSE / R²）
+y_true = df_test['Yield'].values
+test_metrics = []
+for m in model_names:
+    y_pred = predictor.predict(df_test, model=m)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    r2 = r2_score(y_true, y_pred)
+    test_metrics.append({'model': m, 'RMSE_test': round(rmse, 2), 'R2_test': round(r2, 3)})
+df_test_metrics = pd.DataFrame(test_metrics)
+
+# 9.Leaderboard（Cross-validation scores, etc.）
+lb = predictor.leaderboard(silent=True) 
+score_cols = [c for c in lb.columns if 'score' in c]
+cv_metrics = lb[['model'] + score_cols + ['stack_level']].copy()
+
+# 10.Merge two tables
+full_metrics = pd.merge(df_test_metrics, cv_metrics, on='model')
+full_metrics = full_metrics.sort_values(by='RMSE_test')
+
+# 11.Output and save
+print("\n【Success】：")
+print(full_metrics)
+
+outpath = 'E:/wheatN/Nuptake_model_performance.csv'
+full_metrics.to_csv(outpath, index=False)
+
+
+
